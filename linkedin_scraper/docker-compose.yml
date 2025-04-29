@@ -64,23 +64,6 @@ services:
         condition: service_started
     command: ["python", "run.py", "--mode", "web"]
 
-  # monitor-rotator:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.monitor_rotator
-  #   container_name: monitor-rotator
-  #   volumes:
-  #     - .:/app
-  #     - /var/run/docker.sock:/var/run/docker.sock  # Needed for docker inside docker
-  #   depends_on:
-  #     - redis
-  #     - kafka-broker-1
-  #     - kafka-broker-2
-  #     - kafka-broker-3
-  #   networks:
-  #     - linkedin-net
-  #   restart: unless-stopped
-
 
   linkedin-worker-1:
     <<: *worker-base
@@ -316,6 +299,8 @@ services:
       - "8080:8080"
     depends_on:
       - schema-registry
+    volumes:
+      - console:/console/data
     environment:
       CONFIG_FILEPATH: /tmp/config.yml
       CONSOLE_CONFIG_FILE: >
@@ -379,6 +364,7 @@ services:
 volumes:
   elastic_data:
   redis_data:
+  console:
   controller_data_1:
   controller_data_2:
   controller_data_3:
