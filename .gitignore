@@ -1,0 +1,7 @@
+linkedin_jobs.json
+__pycache__
+.virtual_documents
+.ipynb_checkpoints
+.env
+.venv
+linkedin_scraper/logs/*

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LinkedIn Job Scraper</title>
+</head>
+<body>
+  <h2>Scrape LinkedIn Jobs</h2>
+  <form method="post">
+    Job Title: <input type="text" name="title"><br>
+    Location: <input type="text" name="location"><br>
+    Max Jobs: <input type="number" name="max_jobs"><br>
+    <input type="submit" value="Scrape">
+  </form>
+
+  {% if jobs %}
+    <h2>Results</h2>
+    <ul>
+    {% for job in jobs %}
+      <li>
+        <a href="{{ job['job_url'] }}" target="_blank">{{ job['job_title'] }}</a> at {{ job['company_name'] }} ({{ job['location'] }})
+      </li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+</body>
+</html>

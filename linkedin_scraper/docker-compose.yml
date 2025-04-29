@@ -1,0 +1,391 @@
+
+x-monitor-base: &monitor-base
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - DISPLAY=:99
+      - ELASTICSEARCH_HOST=es-container
+      - ELASTICSEARCH_PORT=9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kafka-broker-1:
+        condition: service_started
+      kafka-broker-2:
+        condition: service_started
+      kafka-broker-3:
+        condition: service_started
+      linkedin-web:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - linkedin-net
+
+
+x-worker-base: &worker-base
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "app.worker.scraper_worker"]
+    environment:
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+    networks:
+      - linkedin-net
+    depends_on:
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+
+
+
+services:
+
+  linkedin-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: linkedin-web
+    volumes:
+      - .:/app
+    ports:
+      - "5050:5000"
+    environment:
+      - DISPLAY=:99
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+    networks:
+      - linkedin-net
+    depends_on:
+      redis:
+        condition: service_started
+    command: ["python", "run.py", "--mode", "web"]
+
+  # monitor-rotator:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.monitor_rotator
+  #   container_name: monitor-rotator
+  #   volumes:
+  #     - .:/app
+  #     - /var/run/docker.sock:/var/run/docker.sock  # Needed for docker inside docker
+  #   depends_on:
+  #     - redis
+  #     - kafka-broker-1
+  #     - kafka-broker-2
+  #     - kafka-broker-3
+  #   networks:
+  #     - linkedin-net
+  #   restart: unless-stopped
+
+
+  linkedin-worker-1:
+    <<: *worker-base
+    command: ["python", "-m", "app.worker.scraper_worker"]
+    container_name: linkedin-worker-1
+
+  linkedin-worker-2:
+    <<: *worker-base
+    command: ["python", "-m", "app.worker.scraper_worker"]
+    container_name: linkedin-worker-2
+
+  # linkedin-worker-3:
+  #   <<: *worker-base
+  #   container_name: linkedin-worker-3
+
+  # linkedin-worker-4:
+  #   <<: *worker-base
+  #   container_name: linkedin-worker-4
+
+  # linkedin-worker-5:
+  #   <<: *worker-base
+  #   container_name: linkedin-worker-5
+
+  # linkedin-worker-6:
+  #   <<: *worker-base
+  #   container_name: linkedin-worker-6
+
+  # linkedin-worker-7:
+  #   <<: *worker-base
+  #   container_name: linkedin-worker-7
+
+  # linkedin-worker-8:
+  #   <<: *worker-base
+  #   container_name: linkedin-worker-8
+
+
+  # linkedin-monitor-1:
+  #   <<: *monitor-base
+  #   container_name: linkedin-monitor-1
+  #   command: ["python", "run.py", "--mode", "monitor", "--title", "Security Engineer", "--location", "Bangalore", "--max_posted_days", "0.25"]
+
+  # linkedin-monitor-2:
+  #   <<: *monitor-base
+  #   container_name: linkedin-monitor-2
+  #   command: ["python", "run.py", "--mode", "monitor", "--title", "Devops Engineer", "--location", "Chennai", "--max_posted_days", "0.25"]
+
+  # linkedin-monitor-3:
+  #   <<: *monitor-base
+  #   container_name: linkedin-monitor-3
+  #   command: ["python", "run.py", "--mode", "monitor", "--title", "Automation Engineer", "--location", "Hyderabad", "--max_posted_days", "0.25"]
+
+  # linkedin-monitor-4:
+  #   <<: *monitor-base
+  #   container_name: linkedin-monitor-4
+  #   command: ["python", "run.py", "--mode", "monitor", "--title", "Testing Engineer", "--location", "Mumbai", "--max_posted_days", "0.25"]
+
+  # linkedin-monitor-5:
+  #   <<: *monitor-base
+  #   container_name: linkedin-monitor-5
+  #   command: ["python", "run.py", "--mode", "monitor", "--title", "VP", "--location", "California", "--max_posted_days", "0.25"]
+
+  # linkedin-monitor-6:
+  #   <<: *monitor-base
+  #   container_name: linkedin-monitor-6
+  #   command: ["python", "run.py", "--mode", "monitor", "--title", "Assosiate", "--location", "London, Ontario", "--max_posted_days", "0.25"]
+
+  # linkedin-monitor-7:
+  #   <<: *monitor-base
+  #   container_name: linkedin-monitor-7
+  #   command: ["python", "run.py", "--mode", "monitor", "--title", "Big Data Engineer", "--location", "Detroit", "--max_posted_days", "0.25"]
+
+  linkedin-monitor-8:
+    <<: *monitor-base
+    container_name: linkedin-monitor-8
+    command: ["python", "run.py", "--mode", "monitor", "--title", "AI Engineer", "--location", "Toronto", "--max_posted_days", "0.25"]
+
+  linkedin-monitor-9:
+    <<: *monitor-base
+    container_name: linkedin-monitor-9
+    command: ["python", "run.py", "--mode", "monitor", "--title", "Data Analyst", "--location", "Vancouver", "--max_posted_days", "0.25"]
+
+
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - linkedin-net
+    restart: unless-stopped
+
+  kafka-controller-1:
+    image: apache/kafka:3.8.1
+    container_name: kafka-controller-1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: controller
+      KAFKA_LISTENERS: CONTROLLER://kafka-controller-1:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-controller-1:9093,2@kafka-controller-2:9093,3@kafka-controller-3:9093
+    networks:
+      - linkedin-net
+    volumes:
+      - controller_data_1:/var/lib/kafka/data
+
+  kafka-controller-2:
+    image: apache/kafka:3.8.1
+    container_name: kafka-controller-2
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_PROCESS_ROLES: controller
+      KAFKA_LISTENERS: CONTROLLER://kafka-controller-2:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-controller-1:9093,2@kafka-controller-2:9093,3@kafka-controller-3:9093
+    networks:
+      - linkedin-net
+    volumes:
+      - controller_data_2:/var/lib/kafka/data
+
+  kafka-controller-3:
+    image: apache/kafka:3.8.1
+    container_name: kafka-controller-3
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_PROCESS_ROLES: controller
+      KAFKA_LISTENERS: CONTROLLER://kafka-controller-3:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-controller-1:9093,2@kafka-controller-2:9093,3@kafka-controller-3:9093
+    networks:
+      - linkedin-net
+    volumes:
+      - controller_data_3:/var/lib/kafka/data
+
+  kafka-broker-1:
+    image: apache/kafka:3.8.1
+    container_name: kafka-broker-1
+    ports:
+      - "29092:9092"
+    environment:
+      KAFKA_NODE_ID: 4
+      KAFKA_PROCESS_ROLES: broker
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-1:19092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-1:19092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-controller-1:9093,2@kafka-controller-2:9093,3@kafka-controller-3:9093
+    depends_on:
+      - kafka-controller-1
+      - kafka-controller-2
+      - kafka-controller-3
+    volumes:
+      - broker_data_1:/var/lib/kafka/data
+    networks:
+      - linkedin-net
+
+  kafka-broker-2:
+    image: apache/kafka:3.8.1
+    container_name: kafka-broker-2
+    ports:
+      - "39092:9092"
+    environment:
+      KAFKA_NODE_ID: 5
+      KAFKA_PROCESS_ROLES: broker
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-2:19092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-2:19092,PLAINTEXT_HOST://localhost:39092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-controller-1:9093,2@kafka-controller-2:9093,3@kafka-controller-3:9093
+    depends_on:
+      - kafka-controller-1
+      - kafka-controller-2
+      - kafka-controller-3
+    volumes:
+      - broker_data_2:/var/lib/kafka/data
+    networks:
+      - linkedin-net
+
+  kafka-broker-3:
+    image: apache/kafka:3.8.1
+    container_name: kafka-broker-3
+    ports:
+      - "49092:9092"
+    environment:
+      KAFKA_NODE_ID: 6
+      KAFKA_PROCESS_ROLES: broker
+      KAFKA_LISTENERS: PLAINTEXT://kafka-broker-3:19092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-broker-3:19092,PLAINTEXT_HOST://localhost:49092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-controller-1:9093,2@kafka-controller-2:9093,3@kafka-controller-3:9093
+    depends_on:
+      - kafka-controller-1
+      - kafka-controller-2
+      - kafka-controller-3
+    volumes:
+      - broker_data_3:/var/lib/kafka/data
+    networks:
+      - linkedin-net
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.1
+    container_name: schema-registry
+    ports:
+      - "18081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka-broker-1:19092,kafka-broker-2:19092,kafka-broker-3:19092
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC: _schemas
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:18081
+    depends_on:
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    networks:
+      - linkedin-net
+
+  console:
+    image: docker.redpanda.com/redpandadata/console:v2.5.2
+    container_name: console
+    entrypoint: /bin/sh
+    command: |-
+      -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml; /app/console'
+    ports:
+      - "8080:8080"
+    depends_on:
+      - schema-registry
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: >
+        kafka:
+          brokers: ["kafka-broker-1:19092", "kafka-broker-2:19092", "kafka-broker-3:19092"]
+          schemaRegistry:
+            enabled: true
+            urls: ["http://schema-registry:18081"]
+    networks:
+      - linkedin-net
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: es-container
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m     # <== MEMORY OPTIMIZATION
+    ports:
+      - "9200:9200"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: curl --silent --fail http://localhost:9200/_cluster/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - linkedin-net
+
+  kibana:
+    container_name: kb-container
+    image: docker.elastic.co/kibana/kibana:8.11.1
+    environment:
+      - ELASTICSEARCH_HOSTS=http://es-container:9200
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    networks:
+      - linkedin-net
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.1
+    container_name: ls-container
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/elk/logstash/pipeline:/usr/share/logstash/pipeline
+    environment:
+      - ELASTICSEARCH_HOST=http://es-container:9200
+      - KAFKA_BOOTSTRAP_SERVERS=kafka-broker-1:19092,kafka-broker-2:19092,kafka-broker-3:19092
+      - LS_JAVA_OPTS=-Xms256m -Xmx512m      # <== MEMORY OPTIMIZATION
+    depends_on:
+      - elasticsearch
+      - kafka-broker-1
+      - kafka-broker-2
+      - kafka-broker-3
+    networks:
+      - linkedin-net
+
+volumes:
+  elastic_data:
+  redis_data:
+  controller_data_1:
+  controller_data_2:
+  controller_data_3:
+  broker_data_1:
+  broker_data_2:
+  broker_data_3:
+
+networks:
+  linkedin-net:
+    driver: bridge
