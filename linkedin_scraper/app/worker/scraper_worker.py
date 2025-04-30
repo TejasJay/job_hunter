@@ -65,7 +65,7 @@ def scrape_jobs_from_pending_queue(batch_size=BATCH_SIZE):
                     redis_store.mark_job_as_scraped(job_id)
                     redis_store.add_job_id(job_id)  # Global "seen" set
                     success = True
-                    break  # Exit retry loop
+                    break  # Exit retry loop..
                 else:
                     print(f"[Worker] Failed to parse job details for {job_id}, retrying...")
 

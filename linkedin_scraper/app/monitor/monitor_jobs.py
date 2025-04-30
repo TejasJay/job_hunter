@@ -1,15 +1,14 @@
 import time
-import re
 import argparse
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 from app.scraper.driver import get_driver
 from app.scraper.utils import extract_job_id
 from app.scraper.redis_store import redis_store
 
-# Constants
 SCROLL_PAUSE_TIME = 2
-MAX_SCROLL_ITERATIONS = 100
 
 DATE_FILTERS = {
     "any": "",
@@ -18,25 +17,39 @@ DATE_FILTERS = {
     "past_24_hours": "r86400"
 }
 
+
 def parse_posted_days(posted_text):
     text = posted_text.lower()
+
+    if "today" in text or "just now" in text:
+        return 0
+    if "minute" in text:
+        return round(1 / 24, 2)
     if "hour" in text:
-        hours = int(''.join(filter(str.isdigit, text)))
-        return round(hours / 24, 2)
+        digits = ''.join(filter(str.isdigit, text))
+        return round(int(digits) / 24, 2) if digits else 999
     if "day" in text:
-        return int(''.join(filter(str.isdigit, text)))
+        digits = ''.join(filter(str.isdigit, text))
+        return int(digits) if digits else 999
     if "week" in text:
-        return int(''.join(filter(str.isdigit, text))) * 7
+        digits = ''.join(filter(str.isdigit, text))
+        return int(digits) * 7 if digits else 999
     if "month" in text:
-        return int(''.join(filter(str.isdigit, text))) * 30
+        digits = ''.join(filter(str.isdigit, text))
+        return int(digits) * 30 if digits else 999
+
     return 999
 
+
 def scroll_and_click_see_more(driver, n_jobs_estimate):
-    i = 2
+    scroll_iteration = 2
     no_button_attempts = 0
-    while i <= int((n_jobs_estimate + 200) / 25) + 1:
+    max_iterations = int((n_jobs_estimate + 200) / 25) + 1
+
+    while scroll_iteration <= max_iterations:
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(SCROLL_PAUSE_TIME)
+
         try:
             see_more_button = driver.find_element(By.XPATH, "//button[@aria-label='See more jobs']")
             if see_more_button.is_displayed():
@@ -48,9 +61,45 @@ def scroll_and_click_see_more(driver, n_jobs_estimate):
             time.sleep(2)
             if no_button_attempts >= 2:
                 break
-        i += 1
+        scroll_iteration += 1
 
     print("[Monitor] Finished scrolling and loading all jobs.")
+
+
+def process_job_item(job_item, max_posted_days):
+    try:
+        job_div = job_item.find_element(By.CLASS_NAME, "base-card")
+        data_entity_urn = job_div.get_attribute("data-entity-urn")
+        if not data_entity_urn or "jobPosting:" not in data_entity_urn:
+            return None, "no_job_id"
+
+        job_id = data_entity_urn.split("jobPosting:")[-1].strip()
+
+        try:
+            job_url_element = job_div.find_element(By.XPATH, ".//a[contains(@href, '/jobs/view/')]")
+            job_url = job_url_element.get_attribute("href")
+        except:
+            return None, "no_url"
+
+        try:
+            posted_time_element = job_div.find_element(By.XPATH, ".//*[contains(@class, 'listdate') or contains(text(), 'ago')]")
+            posted_text = posted_time_element.text.strip()
+            posted_days = parse_posted_days(posted_text)
+        except:
+            posted_days = 999
+
+        if max_posted_days is not None and posted_days > max_posted_days:
+            return None, "too_old"
+
+        return {
+            "job_id": job_id,
+            "job_url": job_url
+        }, None
+
+    except Exception as e:
+        print(f"[Monitor] Error processing job item: {e}")
+        return None, "exception"
+
 
 def monitor_linkedin_jobs(title="Data Engineer", location="Canada", date_filter="past_week", max_posted_days=None):
     if date_filter not in DATE_FILTERS:
@@ -68,7 +117,8 @@ def monitor_linkedin_jobs(title="Data Engineer", location="Canada", date_filter=
             base_url += f"&f_TPR={date_code}"
 
         driver.get(base_url)
-        time.sleep(5)
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'results-context-header__job-count')))
+        time.sleep(2)
 
         try:
             job_count_element = driver.find_element(By.CLASS_NAME, 'results-context-header__job-count')
@@ -86,74 +136,48 @@ def monitor_linkedin_jobs(title="Data Engineer", location="Canada", date_filter=
             job_items = container.find_elements(By.TAG_NAME, "li")
         except Exception as e:
             print(f"[Monitor] Failed to find job container: {e}")
-            driver.quit()
             return
 
         print(f"[Monitor] Found {len(job_items)} jobs after scrolling.")
 
         total_jobs = len(job_items)
-        skipped_no_jobid = 0
-        skipped_no_url = 0
-        skipped_too_old = 0
+        skipped = {
+            "no_job_id": 0,
+            "no_url": 0,
+            "too_old": 0,
+            "exception": 0
+        }
         accepted_jobs = 0
 
         for job_item in job_items:
-            try:
-                try:
-                    job_div = job_item.find_element(By.CLASS_NAME, "base-card")
-                except:
-                    skipped_no_jobid += 1
-                    continue
+            result, skip_reason = process_job_item(job_item, max_posted_days)
 
-                data_entity_urn = job_div.get_attribute("data-entity-urn")
-                if not data_entity_urn or "jobPosting:" not in data_entity_urn:
-                    skipped_no_jobid += 1
-                    continue
-
-                job_id = data_entity_urn.split("jobPosting:")[-1].strip()
-
-                try:
-                    job_url_element = job_div.find_element(By.XPATH, ".//a[contains(@href, '/jobs/view/')]")
-                    job_url = job_url_element.get_attribute("href")
-                except:
-                    skipped_no_url += 1
-                    continue
-
-                try:
-                    posted_time_element = job_div.find_element(By.XPATH, ".//*[contains(@class, 'listdate')]")
-                    posted_text = posted_time_element.text.strip()
-                    posted_days = parse_posted_days(posted_text)
-                except:
-                    posted_days = 999
-
-                if max_posted_days is not None and posted_days > max_posted_days:
-                    skipped_too_old += 1
-                    continue
-
-                if redis_store.is_job_id_scraped(job_id):
-                    print(f"[Monitor] Already scraped {job_id}, skipping...")
-                    continue
-                elif redis_store.is_job_id_seen(job_id):
-                    print(f"[Monitor] Seen before but not scraped, adding to update queue: {job_id}")
-                    redis_store.add_to_pending_update_jobs(job_id, job_url)
-                else:
-                    print(f"[Monitor] New job detected, adding to new scrape queue: {job_id}")
-                    redis_store.add_to_pending_new_jobs(job_id, job_url)
-                    redis_store.add_job_id(job_id)
-
-                accepted_jobs += 1
-
-            except Exception as e:
-                print(f"[Monitor] Error parsing job item: {e}")
+            if skip_reason:
+                skipped[skip_reason] += 1
                 continue
 
+            job_id = result["job_id"]
+            job_url = result["job_url"]
+
+            if redis_store.is_job_id_scraped(job_id):
+                print(f"[Monitor] Already scraped {job_id}, skipping...")
+                continue
+            elif redis_store.is_job_id_seen(job_id):
+                print(f"[Monitor] Seen before but not scraped, adding to update queue: {job_id}")
+                redis_store.add_to_pending_update_jobs(job_id, job_url)
+            else:
+                print(f"[Monitor] New job detected, adding to new scrape queue: {job_id}")
+                redis_store.add_to_pending_new_jobs(job_id, job_url)
+                redis_store.add_job_id(job_id)
+
+            accepted_jobs += 1
+
+        # Summary
         print("\n[Summary] --------------------------------------------------")
-        print(f"[Monitor] Monitoring '{title}' jobs in '{location}'")
-        print(f"Total Jobs Found                       : {len(job_items)}")
-        print(f"Jobs Accepted                          : {accepted_jobs}")
-        print(f"Skipped - No Job ID                    : {skipped_no_jobid}")
-        print(f"Skipped - No URL                       : {skipped_no_url}")
-        print(f"Skipped - Too Old                      : {skipped_too_old}")
+        print(f"Total Jobs Found           : {total_jobs}")
+        print(f"Jobs Accepted              : {accepted_jobs}")
+        for k, v in skipped.items():
+            print(f"Skipped - {k.replace('_', ' ').title():<22}: {v}")
         print("-----------------------------------------------------------\n")
 
     except Exception as e:
@@ -162,6 +186,7 @@ def monitor_linkedin_jobs(title="Data Engineer", location="Canada", date_filter=
     finally:
         driver.quit()
         print("[Monitor] Done scraping. Exiting process.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
