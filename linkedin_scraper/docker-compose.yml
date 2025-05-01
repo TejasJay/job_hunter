@@ -64,16 +64,26 @@ services:
         condition: service_started
     command: ["python", "run.py", "--mode", "web"]
 
+  linkedin-scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    container_name: linkedin-scraper
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+    command: python scraper_new.py
 
-  linkedin-worker-1:
-    <<: *worker-base
-    command: ["python", "-m", "app.worker.scraper_worker"]
-    container_name: linkedin-worker-1
+  # linkedin-worker-1:
+  #   <<: *worker-base
+  #   command: ["python", "-m", "app.worker.scraper_worker"]
+  #   container_name: linkedin-worker-1
 
-  linkedin-worker-2:
-    <<: *worker-base
-    command: ["python", "-m", "app.worker.scraper_worker"]
-    container_name: linkedin-worker-2
+  # linkedin-worker-2:
+  #   <<: *worker-base
+  #   command: ["python", "-m", "app.worker.scraper_worker"]
+  #   container_name: linkedin-worker-2
 
   # linkedin-worker-3:
   #   <<: *worker-base
@@ -135,15 +145,15 @@ services:
   #   container_name: linkedin-monitor-7
   #   command: ["python", "run.py", "--mode", "monitor", "--title", "Big Data Engineer", "--location", "Detroit", "--max_posted_days", "0.25"]
 
-  linkedin-monitor-8:
-    <<: *monitor-base
-    container_name: linkedin-monitor-8
-    command: ["python", "run.py", "--mode", "monitor", "--title", "AI Engineer", "--location", "Toronto", "--max_posted_days", "0.25"]
+  # linkedin-monitor-8:
+  #   <<: *monitor-base
+  #   container_name: linkedin-monitor-8
+  #   command: ["python", "run.py", "--mode", "monitor", "--title", "AI Engineer", "--location", "Toronto", "--max_posted_days", "0.25"]
 
-  linkedin-monitor-9:
-    <<: *monitor-base
-    container_name: linkedin-monitor-9
-    command: ["python", "run.py", "--mode", "monitor", "--title", "Data Analyst", "--location", "Vancouver", "--max_posted_days", "0.25"]
+  # linkedin-monitor-9:
+  #   <<: *monitor-base
+  #   container_name: linkedin-monitor-9
+  #   command: ["python", "run.py", "--mode", "monitor", "--title", "Data Analyst", "--location", "Vancouver", "--max_posted_days", "0.25"]
 
 
 

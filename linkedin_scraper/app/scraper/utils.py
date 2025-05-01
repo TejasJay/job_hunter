@@ -26,6 +26,7 @@ def log_missing_field(job_url, field_name):
     with open(LOG_PATH, "a", encoding="utf-8") as log_file:
         log_file.write(f"[MISSING] {field_name} not found at {job_url}\n")
 
+
 def get_text_by_xpath(driver, xpath: str, field_name: str, job_url: str):
     """
     Attempt to extract the text from an element by XPath. If not found, logs and returns None.
@@ -39,7 +40,7 @@ def get_text_by_xpath(driver, xpath: str, field_name: str, job_url: str):
 
 def round_to_nearest_hour(dt):
     """Round a datetime object to the nearest hour."""
-    # If minutes >= 30, round up by adding (60 - minutes) minutes
+    # If minutes >= 30, round up by adding (60 - minutes) minutes.
     # Otherwise, subtract minutes
     if dt.minute >= 30:
         dt = dt.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
@@ -47,39 +48,33 @@ def round_to_nearest_hour(dt):
         dt = dt.replace(minute=0, second=0, microsecond=0)
     return dt
 
+
 def posted_text_to_datetime(posted_text):
     posted_text = posted_text.lower()
     now = datetime.utcnow()
-
     if "minute" in posted_text:
         minutes = int(re.search(r"\d+", posted_text).group())
         dt = now - timedelta(minutes=minutes)
         return round_to_nearest_hour(dt)  # <<< ROUNDING HERE
-
     elif "hour" in posted_text:
         hours = int(re.search(r"\d+", posted_text).group())
         dt = now - timedelta(hours=hours)
         return round_to_nearest_hour(dt)  # <<< ROUNDING HERE
-
     elif "day" in posted_text:
         days = int(re.search(r"\d+", posted_text).group())
         dt = now - timedelta(days=days)
         return datetime(dt.year, dt.month, dt.day)  # Already resetting time to 00:00
-
     elif "week" in posted_text:
         weeks = int(re.search(r"\d+", posted_text).group())
         dt = now - timedelta(weeks=weeks)
         return datetime(dt.year, dt.month, dt.day)
-
     elif "month" in posted_text:
         months = int(re.search(r"\d+", posted_text).group())
         dt = now - timedelta(days=months * 30)  # Approximate
         return datetime(dt.year, dt.month, dt.day)
-
     elif "year" in posted_text:
         years = int(re.search(r"\d+", posted_text).group())
         dt = now - timedelta(days=years * 365)  # Approximate
         return datetime(dt.year, dt.month, dt.day)
-
     else:
         return None

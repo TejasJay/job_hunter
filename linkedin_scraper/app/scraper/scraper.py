@@ -2,6 +2,7 @@ import os
 import time
 import json
 import random
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -13,64 +14,128 @@ from .job_parser import parse_job_details
 from .utils import extract_job_id
 from kafka_utils.producer import create_topic, produce_transaction
 
+# -- Constants --
+DATA_FILE = os.path.join("data", "linkedin_jobs.json")
 topic = create_topic("job_records")
 
-DATA_FILE = os.path.join("data", "linkedin_jobs.json")
 
-
-def scroll_and_click_see_more(driver):
+def scroll_until_target_jobs(driver, target_job_count, max_scroll_attempts=150, stagnant_threshold=3):
     """
-    Scrolls down the LinkedIn jobs page and clicks the 'See more jobs' button if present.
-    """
-    try:
-        see_more_button = driver.find_element(By.XPATH, "//button[@aria-label='See more jobs']")
-        if see_more_button.is_displayed():
-            driver.execute_script("arguments[0].click();", see_more_button)
-            time.sleep(3)
-            return True
-    except:
-        pass
+    Scrolls the LinkedIn jobs page until at least `target_job_count` jobs are loaded,
+    or scrolling stagnates, or max scroll attempts reached.
 
-    driver.find_element(By.TAG_NAME, "body").send_keys(Keys.END)
-    time.sleep(random.uniform(2, 3))
-    return False
+    Args:
+        driver: Selenium WebDriver instance
+        target_job_count: number of job cards we want loaded
+        max_scroll_attempts: maximum scroll actions
+        stagnant_threshold: stop if no new jobs for N scrolls
+
+    Returns:
+        list of job element WebElements
+    """
+    scroll_attempts = 0
+    stagnant_scrolls = 0
+    last_count = 0
+
+    while scroll_attempts < max_scroll_attempts:
+        # Try clicking 'See more jobs' if visible
+        try:
+            for i in range(3):
+                see_more_button = driver.find_element(By.XPATH, "//button[@aria-label='See more jobs']")
+                if see_more_button.is_displayed():
+                    driver.execute_script("arguments[0].click();", see_more_button)
+                    time.sleep(3)
+        except:
+            pass
+
+        # Scroll to bottom
+        driver.find_element(By.TAG_NAME, "body").send_keys(Keys.END)
+        time.sleep(random.uniform(2, 3))
+
+        # Count loaded job elements
+        job_elements = driver.find_elements(By.CLASS_NAME, "base-card__full-link")
+        current_count = len(job_elements)
+        print(f"[Scroll] Jobs loaded: {current_count}")
+
+        # Stop if enough jobs loaded
+        if current_count >= target_job_count:
+            print(f"[Scroll] Reached target of {target_job_count} jobs.")
+            break
+
+        # Stop if no new jobs after several scrolls
+        if current_count == last_count:
+            stagnant_scrolls += 1
+        else:
+            stagnant_scrolls = 0
+
+        if stagnant_scrolls >= stagnant_threshold:
+            print("[Scroll] No new jobs after multiple scrolls. Stopping early.")
+            break
+
+        last_count = current_count
+        scroll_attempts += 1
+
+    return job_elements
 
 
 def scrape_linkedin_jobs(max_jobs=10, title="Data Engineer", location="Canada", use_redis=True):
-    new_jobs = []
+    """
+    Scrapes LinkedIn job postings, scrolls until enough jobs loaded.
 
+    Args:
+        max_jobs: number of jobs to scrape
+        title: job title keyword
+        location: job location
+        use_redis: deduplicate using Redis
+
+    Returns:
+        list of scraped job dictionaries
+    """
+    new_jobs = []
+    existing_data = []
+
+    # Load existing jobs from JSON
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             try:
                 existing_data = json.load(f)
             except json.JSONDecodeError:
                 existing_data = []
-    else:
-        existing_data = []
 
     driver = get_driver()
     wait = WebDriverWait(driver, 10)
 
-    url = f"https://www.linkedin.com/jobs/search?keywords={title}&location={location}&position=1&pageNum=0"
-    driver.get(url)
-    time.sleep(5)
+    url_template = f"https://www.linkedin.com/jobs/search?keywords={title}&location={location}&start={{}}"
+    start_offset = 0
+    jobs_loaded = 0
 
-    scroll_attempts = 0
-    max_scroll_attempts = 150
-    last_seen_count = 0
-    stagnant_scrolls = 0
+    while len(new_jobs) < max_jobs:
+        url = url_template.format(start_offset)
+        driver.get(url)
+        time.sleep(5)
 
-    while len(new_jobs) < max_jobs and scroll_attempts < max_scroll_attempts:
-        job_elements = driver.find_elements(By.CLASS_NAME, "base-card__full-link")
-        print(f"🔍 Found {len(job_elements)} job elements")
+        # Get estimated total jobs
+        try:
+            job_count_element = driver.find_element(By.CLASS_NAME, 'results-context-header__job-count')
+            n_jobs_estimate = int(''.join(filter(str.isdigit, job_count_element.text)))
+            print(f"[Init] Found total {n_jobs_estimate} jobs according to page.")
+        except:
+            n_jobs_estimate = 300
+            print(f"[Init] Could not read total job count, assuming {n_jobs_estimate}.")
 
-        if not job_elements:
-            print("No job cards found. Dumping HTML to debug...")
-            with open("debug_linkedin_jobs.html", "w", encoding="utf-8") as f:
-                f.write(driver.page_source)
-            break
+        job_elements = scroll_until_target_jobs(driver, target_job_count=max_jobs)
+
+        if not job_elements or len(job_elements) == 0:
+            print("[Page] No jobs loaded on this page, trying next page...")
+            start_offset += 25
+            continue
+
+        print(f"✅ Starting parse of {len(job_elements)} jobs...")
 
         for idx, job in enumerate(job_elements):
+            if len(new_jobs) >= max_jobs:
+                break
+
             job_url = job.get_attribute("href")
             job_id = extract_job_id(job_url)
 
@@ -84,13 +149,16 @@ def scrape_linkedin_jobs(max_jobs=10, title="Data Engineer", location="Canada", 
                 print("------------------------------------------------")
                 print(f"Processing job index {idx}: {job_id}")
                 print("------------------------------------------------")
+
+                driver.execute_script("arguments[0].scrollIntoView(true);", job)
                 driver.execute_script("arguments[0].click();", job)
+
                 wait.until(EC.presence_of_element_located((By.XPATH, "//h2")))
                 time.sleep(random.uniform(2, 4))
 
                 job_data = parse_job_details(driver, job_url)
                 if not job_data:
-                    print(f"Failed to parse job index {idx}")
+                    print(f"❌ Failed to parse job index {idx}")
                     continue
 
                 if use_redis:
@@ -98,37 +166,19 @@ def scrape_linkedin_jobs(max_jobs=10, title="Data Engineer", location="Canada", 
 
                 new_jobs.append(job_data)
                 produce_transaction(job_data)
-                print("------------------------------------------------")
-                print(f"Captured: {job_data['job_title']} at {job_data['company_name']}")
-                print("------------------------------------------------")
+                print(f"✅ Captured: {job_data['job_title']} at {job_data['company_name']}")
 
                 if use_redis:
                     redis_store.mark_job_as_scraped(job_id)
 
-                if len(new_jobs) >= max_jobs:
-                    break
-
             except Exception as e:
-                print(f"Failed to process job index {idx}: {e}")
+                print(f"❌ Error processing job {idx} ({job_id}): {e}")
                 continue
 
-        if len(new_jobs) >= max_jobs:
-            break
-
-        scroll_and_click_see_more(driver)
-        scroll_attempts += 1
-
-        # Optional: detect stagnation in job discovery
-        current_count = len(job_elements)
-        if current_count == last_seen_count:
-            stagnant_scrolls += 1
-        else:
-            stagnant_scrolls = 0
-        last_seen_count = current_count
-
-        if stagnant_scrolls >= 3:
-            print("[Scroll] No new jobs loaded after multiple attempts. Exiting scroll loop early.")
-            break
+        # If not enough jobs scraped yet → go to next page
+        if len(new_jobs) < max_jobs:
+            start_offset += 25
+            print(f"[Page] Moving to next page (start={start_offset}) to load more jobs...")
 
     driver.quit()
 
@@ -137,9 +187,5 @@ def scrape_linkedin_jobs(max_jobs=10, title="Data Engineer", location="Canada", 
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(final_jobs, f, ensure_ascii=False, indent=2)
 
-    print(f"\nScraping complete. Added {len(new_jobs)} new job(s). Total now: {len(final_jobs)}.")
+    print(f"\n🎉 Scraping complete. Added {len(new_jobs)} new jobs. Total: {len(final_jobs)}.")
     return new_jobs
-
-
-
-#
