@@ -19,7 +19,7 @@ def close_modal_if_exists(page):
     dismiss_selector = "button.contextual-sign-in-modal__modal-dismiss"
 
     try:
-        # Wait for the dismiss button to be attached in DOM
+        # Wait for the dismiss button to be attached in DOM.
         page.wait_for_selector(dismiss_selector, timeout=10000, state="attached")
         dismiss_button = page.locator(dismiss_selector).first
 
