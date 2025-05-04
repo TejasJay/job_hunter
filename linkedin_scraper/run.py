@@ -26,12 +26,35 @@ def select_dynamic_date_filter(date_filter, max_posted_days):
             return "any"
     return date_filter  # Use user-specified filter if provided
 
+def estimate_max_scrolls(max_jobs):
+    """
+    Estimate the number of scrolls based on desired max_jobs.
+    You can tweak thresholds as needed.
+    """
+    if max_jobs <= 25:
+        return 5
+    elif max_jobs <= 75:
+        return 8
+    elif max_jobs <= 150:
+        return 12
+    elif max_jobs <= 300:
+        return 15
+    else:
+        return 20  # Cap at 20 scrolls for very large jobs
+
 def main():
     args = parse_arguments()
 
     if args.mode == "cli":
-        print(f"Running in CLI mode: scraping '{args.title}' jobs in '{args.location}' (max {args.max_jobs})")
-        scrape_linkedin_jobs(max_jobs=args.max_jobs, title=args.title, location=args.location)
+        dynamic_scrolls = estimate_max_scrolls(args.max_jobs)
+        print(f"Running in CLI mode: scraping '{args.title}' jobs in '{args.location}' (max {args.max_jobs}) using {dynamic_scrolls} scrolls")
+        
+        scrape_linkedin_jobs(
+            max_jobs=args.max_jobs,
+            title=args.title,
+            location=args.location,
+            max_scrolls=dynamic_scrolls  # 👈 pass it dynamically!
+        )
 
     elif args.mode == "monitor":
         selected_date_filter = select_dynamic_date_filter(args.date_filter, args.max_posted_days)
