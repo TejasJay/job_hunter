@@ -4,19 +4,14 @@ import os
 import time
 import json
 import random
-import re
 
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, NoSuchElementException, JavascriptException
 
 from .driver import get_driver
 from .redis_store import redis_store
 from .job_parser import parse_job_details
-from .utils import extract_job_id
+from .utils import * 
 from kafka_utils.producer import create_topic, produce_transaction
+
 
 DATA_FILE = os.path.join("data", "linkedin_jobs.json")
 topic = create_topic("job_records")
@@ -28,73 +23,7 @@ DATE_FILTERS = {
     "past_24_hours": "r86400"
 }
 
-
-def close_modal_if_exists(driver):
-    dismiss_selector = "button.contextual-sign-in-modal__modal-dismiss"
-    try:
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, dismiss_selector))
-        )
-        dismiss_button = driver.find_element(By.CSS_SELECTOR, dismiss_selector)
-        print("[✅] Dismiss button found → trying JS click...")
-        try:
-            driver.execute_script("arguments[0].click();", dismiss_button)
-            time.sleep(1)
-            print("[✅] Modal closed using JS click.")
-        except JavascriptException:
-            dismiss_button.click()
-            print("[✅] Modal closed using normal click.")
-    except TimeoutException:
-        print("[⚠️] Dismiss button not visible, skipping...")
-
-
-def scroll_and_load_jobs(driver, max_scrolls=5):
-    for i in range(max_scrolls):
-        print(f"[Scroll] Attempt {i+1}/{max_scrolls} → scrolling...")
-        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.END)
-        time.sleep(2)
-        try:
-            see_more_button = driver.find_element(By.XPATH, "//button[@aria-label='See more jobs']")
-            if see_more_button.is_displayed():
-                print("[✅] 'See more jobs' button visible → clicking...")
-                driver.execute_script("arguments[0].click();", see_more_button)
-                time.sleep(3)
-        except NoSuchElementException:
-            print("[⚠️] 'See more jobs' button not found this time.")
-    print("[✅] Done scrolling.")
-
-
-def scroll_until_target_jobs(driver, target_job_count, max_scroll_attempts=150, stagnant_threshold=3):
-    scroll_attempts = 0
-    stagnant_scrolls = 0
-    last_count = 0
-    while scroll_attempts < max_scroll_attempts:
-        try:
-            for _ in range(3):
-                see_more_button = driver.find_element(By.XPATH, "//button[@aria-label='See more jobs']")
-                if see_more_button.is_displayed():
-                    driver.execute_script("arguments[0].click();", see_more_button)
-                    time.sleep(3)
-        except:
-            pass
-        driver.find_element(By.TAG_NAME, "body").send_keys(Keys.END)
-        time.sleep(random.uniform(2, 3))
-        job_elements = driver.find_elements(By.CLASS_NAME, "base-card__full-link")
-        current_count = len(job_elements)
-        print(f"[Scroll] Jobs loaded: {current_count}")
-        if current_count >= target_job_count:
-            print(f"[Scroll] Reached target of {target_job_count} jobs.")
-            break
-        stagnant_scrolls = stagnant_scrolls + 1 if current_count == last_count else 0
-        if stagnant_scrolls >= stagnant_threshold:
-            print("[Scroll] No new jobs after multiple scrolls. Stopping early.")
-            break
-        last_count = current_count
-        scroll_attempts += 1
-    return job_elements
-
-
-def scrape_linkedin_jobs(max_jobs=10, title="Data Engineer", location="Canada", use_redis=True, max_scrolls=10, date_filter="past_week", max_posted_days=None):
+def scrape_linkedin_jobs(max_jobs=10, title="Data Engineer", location="Canada", use_redis=True, date_filter="past_week", max_posted_days=None):
     if date_filter not in DATE_FILTERS:
         raise ValueError(f"Invalid date_filter '{date_filter}'. Valid options: {list(DATE_FILTERS.keys())}")
     date_code = DATE_FILTERS[date_filter]
@@ -102,7 +31,10 @@ def scrape_linkedin_jobs(max_jobs=10, title="Data Engineer", location="Canada", 
     if date_code:
         url_template += f"&f_TPR={date_code}"
 
-    print(f"\n[Scraper] Starting scrape: '{title}' in '{location}' | Date filter: '{date_filter}' | Max Days: {max_posted_days or 'Any'}")
+    max_scrolls = compute_dynamic_scrolls(max_jobs)
+
+    print(f"\n[Scraper] Starting scrape: '{title}' in '{location}' | Date filter: '{date_filter}' | Max Days: {max_posted_days or 'Any'} | Max Scrolls: {max_scrolls}")
+
     new_jobs = []
     existing_data = []
     if os.path.exists(DATA_FILE):
