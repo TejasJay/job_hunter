@@ -6,5 +6,5 @@ __pycache__
 .venv
 linkedin_scraper/logs/*
 .test
-.ats
+.ats*
 ATS_Generator/uploads

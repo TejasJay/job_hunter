@@ -1,0 +1,129 @@
+<context>
+# Overview  
+ATS Project is a modular, API-driven resume ranking and optimization engine designed to help companies automate candidate screening.  
+It analyzes resumes, compares them to job descriptions, scores candidates across multiple dimensions (skills, experience, titles, soft skills, certifications, quality, bias mitigation), and produces a recruiter-ready report.  
+The system uses advanced NLP (spaCy, BERT, SentenceTransformer), ML models (LightGBM, XGBoost), and customizable weighting to ensure fair, accurate, and explainable rankings.
+
+# Core Features  
+- **Section-Level Parsing and Weighting**
+  - Extract sections like experience, education, skills, certifications, projects.
+  - Apply weighted scoring to reflect recruiter priorities.
+
+- **Semantic Keyword + Concept Matching**
+  - Use BERT embeddings to match concepts, not just exact keywords.
+  - Understand synonyms (e.g., 'scrum master' ≈ 'agile project manager').
+
+- **Skills Normalization**
+  - Map synonyms and abbreviations to canonical skill names.
+  - Uses a customizable skill database.
+
+- **Named Entity Extraction**
+  - Identify job titles, companies, degrees, certifications, dates using NER models.
+
+- **Experience Timeline Analysis**
+  - Calculate total experience, detect gaps, and track seniority growth.
+
+- **Title and Seniority Match**
+  - Compare resume job titles against target roles using semantic similarity.
+
+- **Soft Skills and Leadership Detection**
+  - Identify leadership phrases like 'led team', 'mentored', 'managed budget'.
+
+- **Resume Quality Metrics**
+  - Assess file type, length, readability, and spelling quality.
+
+- **Diversity and Bias Mitigation**
+  - Strip names, gender, nationality to reduce bias in automated rankings.
+
+- **Learning Feedback Loop**
+  - Improve ranking models over time based on recruiter feedback.
+
+</context>
+
+<PRD>
+# Technical Architecture  
+- **Backend:**
+  - FastAPI (Python 3.10+) REST API
+  - Modular, reusable utility functions for each ATS component
+
+- **ML/NLP Models:**
+  - SentenceTransformer (semantic similarity)
+  - SpaCy (NER extraction)
+  - LightGBM / XGBoost (ranking models)
+
+- **Data Storage:**
+  - JSON config files (skill_database.json, soft_skill_patterns.json)
+  - Local model files or cloud model endpoints
+
+- **File Input:**
+  - PDF (pdfplumber), optionally DOCX (python-docx)
+
+- **Core Components:**
+  - section_parser.py → section splitting + weights
+  - semantic_matcher.py → embeddings + tfidf matching
+  - skill_normalizer.py → skill canonicalization
+  - ner_extractor.py → entity extraction + ranking
+  - timeline_analyzer.py → experience analysis
+  - title_matcher.py → title-to-role alignment
+  - soft_skills.py → soft skill detection
+  - quality_checker.py → file/readability metrics
+  - bias_filter.py → anonymization
+  - feedback.py → recruiter feedback logging
+  - pipeline.py → end-to-end orchestration
+  - schemas.py → Pydantic request/response schemas
+
+# Development Roadmap  
+- **MVP Requirements:**
+  - Upload PDF resume + JD input
+  - Section parsing + weighted scoring
+  - Semantic concept match (BERT)
+  - Skills normalization (with synonyms)
+  - Named entity extraction
+  - Experience timeline detection
+  - Title + seniority matching
+  - Soft skills detection (regex)
+  - Resume quality check
+  - Bias filtering
+  - Final ATS score report via API
+
+- **Future Enhancements:**
+  - Interactive recruiter dashboard
+  - Automated resume rewriting
+  - Diversity-aware scoring
+  - User accounts + recruiter profiles
+  - Model training from feedback data
+  - Multi-language resume support
+
+# Logical Dependency Chain  
+- Build section parser → compute section weights
+- Add semantic + tfidf matchers
+- Add skill normalization + NER entity extraction
+- Build experience timeline analyzer
+- Implement title + seniority matcher
+- Add soft skills + resume quality checks
+- Add bias filtering + anonymization
+- Implement ML ranking + feedback loop
+- Build API and pipeline controller
+- Generate recruiter reports
+
+# Risks and Mitigations  
+- **ML model performance on real data:**
+  - Use pretrained models (BERT, spaCy) + tune with real resume samples
+- **Resume format variety (PDF/DOCX/CSV):**
+  - Start with PDF, expand to DOCX with fallback
+- **Bias in training data or models:**
+  - Add anonymization + audit logs
+- **Scalability under batch loads:**
+  - Use async FastAPI endpoints + background workers
+- **Complexity of modular system:**
+  - Keep clear interfaces + unit tests per module
+
+# Appendix  
+- **Skill DB:** `data/skill_database.json`
+- **Soft Skills Patterns:** `data/soft_skill_patterns.json`
+- **Example Job Description:** `data/example_jd.txt`
+- **Embedding Model:** SentenceTransformer all-MiniLM-L6-v2
+- **NER Model:** spaCy en_core_web_sm or BERT NER
+- **TFIDF Example:** scikit-learn TfidfVectorizer + cosine_similarity
+
+</PRD>

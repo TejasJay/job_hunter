@@ -1,0 +1,131 @@
+{
+    "experience": [
+        "experience", "work experience", "professional experience", "internships",
+        "employment history", "career history", "job history", "previous roles", "job experience",
+        "work history", "employment background", "job responsibilities", "career experience"
+    ],
+    "education": [
+        "education", "academic background", "education history", "academic qualifications",
+        "degrees", "university education", "college education", "high school education", "schooling",
+        "academic credentials", "higher education", "academic experience", "studies", "learning background"
+    ],
+    "skills": [
+        "skills", "technical skills", "core competencies", "key skills", "professional skills",
+        "hard skills", "software skills", "programming languages", "languages", "technologies", 
+        "technical expertise", "tools and technologies", "competencies", "skill set", "software proficiency"
+    ],
+    "certifications": [
+        "certifications", "licenses", "certificates", "professional certifications", "professional licenses",
+        "accreditations", "training", "courses", "certified courses", "recognized certifications", "credentials"
+    ],
+    "projects": [
+        "projects", "personal projects", "academic projects", "project experience", "research projects",
+        "independent projects", "side projects", "portfolio projects", "project portfolio", "capstone projects", 
+        "class projects", "major projects", "collaborative projects", "team projects", "project work"
+    ],
+    "summary": [
+        "summary", "profile", "about me", "career summary", "professional summary", "objective", 
+        "personal statement", "career objective", "about", "personal profile", "executive summary", 
+        "bio", "intro", "brief overview"
+    ],
+    "awards": [
+        "awards", "honors", "recognition", "achievements", "accolades", "prizes", "accomplishments", 
+        "awards and recognition", "employee of the year", "industry awards", "best performance awards"
+    ],
+    "publications": [
+        "publications", "research papers", "articles", "books", "whitepapers", "conference papers", 
+        "journals", "publications and articles", "written works", "academic publications", "research output"
+    ],
+    "languages": [
+        "languages", "language skills", "languages spoken", "foreign languages", "spoken languages", 
+        "bilingual", "multilingual", "language proficiency", "language expertise", "languages known"
+    ],
+    "volunteer": [
+        "volunteer", "volunteer experience", "community service", "non-profit work", "charity work", 
+        "social impact", "voluntary work", "community involvement", "charitable activities", "volunteer work"
+    ],
+    "honors": [
+        "honors", "distinctions", "academic honors", "special honors", "awards and honors", 
+        "honors and achievements", "special distinctions", "recognitions", "prestigious awards"
+    ],
+    "contact": [
+        "contact", "contact information", "personal details", "address", "phone", "email", "social media", 
+        "contact info", "phone number", "email address", "contact details", "address and contact"
+    ],
+    "portfolio": [
+        "portfolio", "projects portfolio", "personal portfolio", "work portfolio", "online portfolio", 
+        "link to portfolio", "portfolio website", "project showcase", "portfolio links", "personal showcase"
+    ],
+    "references": [
+        "references", "professional references", "reference list", "referees", "contacts for reference", 
+        "recommendations", "letters of recommendation", "reference contacts", "referral list"
+    ],
+    "salary": [
+        "salary", "expected salary", "compensation", "salary expectations", "salary history", "salary range"
+    ],
+    "relocation": [
+        "relocation", "relocation preference", "willing to relocate", "relocation availability", "open to relocation"
+    ],
+    "availability": [
+        "availability", "availability date", "start date", "notice period", "start availability"
+    ],
+    "projects_highlight": [
+        "projects highlight", "key projects", "highlighted projects", "important projects", "notable projects"
+    ],
+    "public_profile": [
+        "public profile", "personal blog", "social media profile", "LinkedIn profile", "online presence"
+    ],
+    "professional_activities": [
+        "professional activities", "professional affiliations", "industry involvement", "association memberships",
+        "professional organizations", "networking", "industry events"
+    ],
+    "technical_experience": [
+        "technical experience", "technical background", "technical expertise", "engineering experience", 
+        "IT experience", "developer experience", "technical proficiency"
+    ],
+    "testimonials": [
+        "testimonials", "client feedback", "recommendations", "client testimonials", "endorsements"
+    ],
+    "internships": [
+        "internships", "internship experience", "student internships", "summer internships", "industry internships"
+    ],
+    "patents": [
+        "patents", "patent applications", "patent awards", "intellectual property", "patent filings"
+    ],
+    "conferences": [
+        "conferences", "conference presentations", "conferences attended", "seminars", "workshops", 
+        "conference speaker", "workshop facilitator"
+    ],
+    "mentorship": [
+        "mentorship", "mentor experience", "mentoring", "mentoring experience", "mentoring roles"
+    ],
+    "teaching": [
+        "teaching", "teaching experience", "lecturer", "teaching assistant", "educator", "tutor", "trainer"
+    ],
+    "research": [
+        "research", "research experience", "research work", "academic research", "field research", 
+        "lab research", "experimental research"
+    ],
+    "technical_writing": [
+        "technical writing", "documentation", "technical documentation", "manuals", "writing experience"
+    ],
+    "design": [
+        "design", "design experience", "graphic design", "ux/ui design", "product design", "web design", "design portfolio"
+    ],
+    "programming": [
+        "programming", "software development", "coding", "programming experience", "development experience", 
+        "programming languages"
+    ],
+    "business_experience": [
+        "business experience", "business background", "entrepreneurial experience", "business ventures"
+    ],
+    "financial": [
+        "financial experience", "financial analysis", "financial modeling", "accounting", "financial planning"
+    ],
+    "data_analytics": [
+        "data analytics", "data analysis", "data science", "business intelligence", "data visualization"
+    ],
+    "project_management": [
+        "project management", "project lead", "project coordinator", "project planner", "project manager"
+    ]
+}
