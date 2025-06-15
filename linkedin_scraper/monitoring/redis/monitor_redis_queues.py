@@ -2,7 +2,6 @@ import time
 import redis
 import json
 
-# Configuration (👉 correctly point to Docker service name!)
 REDIS_HOST = "localhost"      
 REDIS_PORT = 6380
 POLL_INTERVAL = 10        # seconds between refresh
