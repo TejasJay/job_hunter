@@ -145,7 +145,7 @@ def evaluate_resume_quality(file_path, resume_text):
 
 * * *
 
-### ✅ I. Diversity + bias mitigation
+### ✅ I. Diversity + bias mitigation.
 
 ```python
 def anonymize_resume(resume_text):
