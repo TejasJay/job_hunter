@@ -79,7 +79,7 @@ def normalize_skills(skills_list, skill_database):
 
 * * *
 
-### ✅ D. Named entity extraction.
+### ✅ D. Named entity extraction
 
 ```python
 def extract_named_entities(resume_text, ner_model):
